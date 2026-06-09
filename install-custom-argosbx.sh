@@ -2619,8 +2619,7 @@ patch_argosbx_script() {
   # Client-facing node names should not include the VPS hostname.
   perl -0pi -e 's/-\$hostname//g' "$SCRIPT_PATH"
 
-  # Keep the server-side VMess inbound for Argo, but hide direct VMess and SS2022 from subscriptions.
-  perl -0pi -e 's/if grep ss-2022/if false \&\& grep ss-2022/g' "$SCRIPT_PATH"
+  # Keep the server-side VMess inbound for Argo, but hide direct VMess from subscriptions.
   perl -0pi -e 's/if grep vmess-xr "\$HOME\/agsbx\/xr\.json" >\/dev\/null 2>\&1 \|\| grep vmess-sb "\$HOME\/agsbx\/sb\.json" >\/dev\/null 2>\&1; then/if false \&\& { grep vmess-xr "\$HOME\/agsbx\/xr.json" >\/dev\/null 2>\&1 || grep vmess-sb "\$HOME\/agsbx\/sb.json" >\/dev\/null 2>\&1; }; then/g' "$SCRIPT_PATH"
 
   # Make Argo CDN defaults robust even when the cdnip files exist but contain empty lines.
