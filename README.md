@@ -1,4 +1,4 @@
-# VPS 一键配置
+# Tokoyami-VPS
 
 这个仓库保存 `install-custom-argosbx.sh`，用于在 VPS 上部署并定制 Argosbx 代理环境。
 
@@ -15,6 +15,20 @@
 
 ## 使用
 
+在 VPS 上复制下面的一键命令直接执行：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Utolaris/Tokoyami-VPS/main/install-custom-argosbx.sh | sudo bash
+```
+
+如果已经以 `root` 用户登录 VPS，也可以使用：
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/Utolaris/Tokoyami-VPS/main/install-custom-argosbx.sh | bash
+```
+
+本地手动执行方式：
+
 ```bash
 chmod +x install-custom-argosbx.sh
 sudo ./install-custom-argosbx.sh
@@ -28,4 +42,4 @@ REALITY_DOMAIN=apple.com ARGO_MODE=vmpt ./install-custom-argosbx.sh
 
 ## 安全提醒
 
-脚本包含 VPS 部署相关配置和订阅生成逻辑，建议仓库保持私有。
+脚本会安装系统软件包、写入 `/etc` 和 `/root` 下的配置文件，并重启代理服务。请只在你控制的 VPS 上执行。
