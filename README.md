@@ -9,8 +9,7 @@
 - 写入 Clash/Mihomo 规则文件。
 - 执行内嵌的 Argosbx 上游脚本副本，不再运行时拉取上游主脚本。
 - 修改上游生成的 `/root/bin/agsbx`，定制订阅节点、规则组和 Argo CDN 默认值。
-- 更新 Xray、sing-box、cloudflared 核心。
-- 重启代理服务并重新生成订阅。
+- 重新生成订阅。
 - 校验 sing-box、Xray、Clash/Mihomo 和 Sing-box 订阅输出。
 
 ## 使用
@@ -42,7 +41,7 @@ REALITY_DOMAIN=apple.com ARGO_MODE=vmpt ./install-custom-argosbx.sh
 
 ## 安全提醒
 
-脚本会安装系统软件包、写入 `/etc` 和 `/root` 下的配置文件，并重启代理服务。请只在你控制的 VPS 上执行。
+脚本会安装系统软件包、写入 `/etc` 和 `/root` 下的配置文件，并部署代理服务。请只在你控制的 VPS 上执行。
 
 ## 来源与许可
 

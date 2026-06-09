@@ -27,10 +27,7 @@ SUB_TOKEN="${SUB_TOKEN:-}"
 ARGO_TLS_CDN="${ARGO_TLS_CDN:-yg1.ygkkk.dpdns.org}"
 ARGO_HTTP_CDN="${ARGO_HTTP_CDN:-yg6.ygkkk.dpdns.org}"
 
-# 是否强制刷新 Xray、sing-box、cloudflared 三个核心二进制。
-FORCE_CORE_UPDATE="${FORCE_CORE_UPDATE:-yes}"
-
-# 确认脚本以 root 身份运行，因为后续会写 /etc、/root 并重启服务。
+# 确认脚本以 root 身份运行，因为后续会写 /etc、/root 并部署服务。
 need_root() {
   if [ "$(id -u)" -ne 0 ]; then
     echo "Please run as root." >&2
@@ -2610,36 +2607,6 @@ write_argo_cdn_defaults() {
   fi
 }
 
-# 根据 CPU 架构选择要下载的核心二进制名称。
-detect_core_arch() {
-  case "$(uname -m)" in
-    x86_64|amd64) echo amd64 ;;
-    aarch64|arm64) echo arm64 ;;
-    armv7l|armv7|armhf) echo arm ;;
-    *) echo amd64 ;;
-  esac
-}
-
-# 强制刷新 Xray、sing-box 和 cloudflared 核心。
-# 下载完成后输出版本信息，方便确认核心文件已经替换。
-force_update_cores() {
-  [ "$FORCE_CORE_UPDATE" = "yes" ] || return 0
-
-  local arch
-  arch="$(detect_core_arch)"
-  mkdir -p /root/agsbx
-
-  echo "Refreshing Xray, sing-box and cloudflared cores..."
-  curl -fsSL "https://github.com/yonggekkk/argosbx/releases/download/argosbx/xray-${arch}" -o /root/agsbx/xray
-  curl -fsSL "https://github.com/yonggekkk/argosbx/releases/download/argosbx/sing-box-${arch}" -o /root/agsbx/sing-box
-  curl -fsSL "https://github.com/cloudflare/cloudflared/releases/latest/download/cloudflared-linux-${arch}" -o /root/agsbx/cloudflared
-  chmod +x /root/agsbx/xray /root/agsbx/sing-box /root/agsbx/cloudflared
-
-  echo "Xray:       $(/root/agsbx/xray version 2>/dev/null | awk '/^Xray/{print $2; exit}')"
-  echo "sing-box:   $(/root/agsbx/sing-box version 2>/dev/null | awk '/version/{print $NF; exit}')"
-  echo "cloudflared: $(/root/agsbx/cloudflared --version 2>/dev/null | awk '{print $3; exit}')"
-}
-
 # 修改上游生成的 /root/bin/agsbx 脚本，让订阅输出符合本机定制需求。
 # 主要动作包括：隐藏部分节点、修正 Argo CDN 读取、让 AnyTLS 走 WARP、
 # 移除负载均衡组，以及把本脚本写入的 Clash/Mihomo 规则导入订阅。
@@ -2693,47 +2660,6 @@ PY
   fi
 
   bash -n "$SCRIPT_PATH"
-}
-
-# 直接修正运行时 sing-box 配置。
-# 这里会移除 ss-2022 inbound，并确保 AnyTLS inbound 通过 warp-out 出站。
-patch_runtime_configs() {
-  python3 - <<'PY'
-import json
-from pathlib import Path
-
-sb = Path("/root/agsbx/sb.json")
-if sb.exists():
-    data = json.loads(sb.read_text())
-    data["inbounds"] = [i for i in data.get("inbounds", []) if i.get("tag") != "ss-2022"]
-    route = data.setdefault("route", {})
-    rules = route.setdefault("rules", [])
-    rules = [r for r in rules if r.get("inbound") != ["anytls-sb"]]
-    insert_at = 2 if len(rules) >= 2 else len(rules)
-    rules.insert(insert_at, {"inbound": ["anytls-sb"], "outbound": "warp-out"})
-    route["rules"] = rules
-    sb.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n")
-PY
-}
-
-# 重启代理服务。
-# 有 systemd 时走 systemctl；没有 systemd 时手动结束旧进程并用 setsid 拉起 sing-box 和 Xray。
-restart_services() {
-  if command -v systemctl >/dev/null 2>&1 && pidof systemd >/dev/null 2>&1; then
-    systemctl daemon-reload >/dev/null 2>&1 || true
-    systemctl restart sb >/dev/null 2>&1 || true
-    systemctl restart xr >/dev/null 2>&1 || true
-    systemctl restart argo >/dev/null 2>&1 || true
-  else
-    for pid in $(pgrep -f '/root/agsbx/sing-box run -c /root/agsbx/sb.json' || true); do
-      [ "$pid" = "$$" ] || kill "$pid" >/dev/null 2>&1 || true
-    done
-    for pid in $(pgrep -f '/root/agsbx/xray run -c /root/agsbx/xr.json' || true); do
-      [ "$pid" = "$$" ] || kill "$pid" >/dev/null 2>&1 || true
-    done
-    setsid /root/agsbx/sing-box run -c /root/agsbx/sb.json >/tmp/agsbx-sing-box.log 2>&1 < /dev/null &
-    setsid /root/agsbx/xray run -c /root/agsbx/xr.json >/tmp/agsbx-xray.log 2>&1 < /dev/null &
-  fi
 }
 
 # 触发 /root/bin/agsbx 重新生成订阅文件。
@@ -2794,7 +2720,7 @@ show_links() {
 }
 
 # 主流程：按顺序完成依赖安装、系统调优、Argosbx 部署、脚本补丁、
-# 核心更新、服务重启、订阅再生成、结果校验和订阅链接输出。
+# 订阅再生成、结果校验和订阅链接输出。
 main() {
   need_root
   install_basic_tools
@@ -2804,10 +2730,7 @@ main() {
   install_argosbx_base
   write_argo_cdn_defaults
   patch_argosbx_script
-  force_update_cores
-  patch_runtime_configs
   write_argo_cdn_defaults
-  restart_services
   regenerate_subscriptions
   verify_install
   show_links
