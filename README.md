@@ -7,7 +7,7 @@
 - 安装基础工具和可选的 Codex CLI。
 - 写入 BBR/fq 等网络调优参数。
 - 写入 Clash/Mihomo 规则文件。
-- 下载并执行上游 Argosbx 安装脚本。
+- 执行内嵌的 Argosbx 上游脚本副本，不再运行时拉取上游主脚本。
 - 修改上游生成的 `/root/bin/agsbx`，定制订阅节点、规则组和 Argo CDN 默认值。
 - 更新 Xray、sing-box、cloudflared 核心。
 - 重启代理服务并重新生成订阅。
@@ -43,3 +43,7 @@ REALITY_DOMAIN=apple.com ARGO_MODE=vmpt ./install-custom-argosbx.sh
 ## 安全提醒
 
 脚本会安装系统软件包、写入 `/etc` 和 `/root` 下的配置文件，并重启代理服务。请只在你控制的 VPS 上执行。
+
+## 来源与许可
+
+本项目内嵌并定制了 [yonggekkk/argosbx](https://github.com/yonggekkk/argosbx) 的 `argosbx.sh`，原项目使用 GPL-3.0 许可证。本仓库保留相同许可证，详见 `LICENSE`。
